@@ -16,7 +16,7 @@ export const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 
 const HEADERS: Record<string, string> = {
   "content-type": "application/json",
-  "http-referer": "https://github.com/Virus-101/freeaipi",
+  "http-referer": "https://github.com/Virus-101/V-lib-freeapi",
   "x-title": "freeaipi",
 };
 

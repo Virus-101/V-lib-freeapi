@@ -8,7 +8,7 @@
 #   1. pypi.org -> Manage -> Publishing -> Add a new pending publisher
 #   2. Project: freeaipi
 #      Workflow name: publish-pypi.yml
-#      Repository: Virus-101/freeaipi
+#      Repository: Virus-101/V-lib-freeapi
 #      Environment: (optional but recommended) "pypi"
 #   3. Then create a release tag `v0.1.0` and this runs.
 #

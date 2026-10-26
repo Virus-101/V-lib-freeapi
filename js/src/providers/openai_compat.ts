@@ -20,7 +20,7 @@ import { BaseProvider } from "./base.js";
 const DEFAULT_HEADERS: Record<string, string> = {
   "content-type": "application/json",
   "x-title": "freeaipi",
-  "http-referer": "https://github.com/Virus-101/freeaipi",
+  "http-referer": "https://github.com/Virus-101/V-lib-freeapi",
 };
 
 export class OpenAICompatProvider extends BaseProvider {

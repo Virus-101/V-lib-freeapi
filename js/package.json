@@ -41,12 +41,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Virus-101/freeaipi"
+    "url": "https://github.com/Virus-101/V-lib-freeapi"
   },
   "bugs": {
-    "url": "https://github.com/Virus-101/freeaipi/issues"
+    "url": "https://github.com/Virus-101/V-lib-freeapi/issues"
   },
-  "homepage": "https://github.com/Virus-101/freeaipi",
+  "homepage": "https://github.com/Virus-101/V-lib-freeapi",
   "devDependencies": {
     "typescript": "^5.4.0",
     "@types/node": "^20.11.0"
