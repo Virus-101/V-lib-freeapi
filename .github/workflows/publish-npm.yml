@@ -1,0 +1,67 @@
+# Publish the TypeScript package to npm.
+#
+# Unlike PyPI, npm has no OIDC trusted publishing — an access token is required.
+# It is stored as a GitHub repository secret (`NPM_TOKEN`) and never appears in
+# the repo, the workflow output, or a chat message.
+#
+# Setup (one time, in the npm and GitHub web UIs):
+#   1. npmjs.com -> Access Tokens -> Generate New Token -> "Granular Access Token"
+#      or "Automation" -> copy it.
+#   2. GitHub repo -> Settings -> Secrets and variables -> Actions ->
+#      New repository secret -> name: NPM_TOKEN, value: <the token>
+#   3. Create a release tag `v0.1.0` and this runs.
+#
+# Nothing publishes until that tag exists.
+
+name: publish-npm
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+      - name: Install, build and test
+        working-directory: js
+        run: |
+          npm install
+          npm run build
+          npm test
+      - name: Pack and verify the tarball contents
+        working-directory: js
+        run: |
+          npm pack --dry-run
+          npm pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-tarball
+          path: js/*.tgz
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-tarball
+          path: dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+      - name: Publish to npm
+        working-directory: dist
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
