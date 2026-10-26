@@ -16,6 +16,21 @@ on your own hardware.
 from __future__ import annotations
 
 from .client import FreeAIClient
+from .convenience import (
+    best,
+    chat,
+    complete,
+    describe,
+    for_vendor,
+    list_models,
+    no_key_models,
+    reset,
+    run_tools,
+    status,
+    stream,
+    vendors,
+    warnings,
+)
 from .models import ModelInfo, Provider, Capabilities
 from .response import ChatResponse, ChatChunk, ToolCall, Usage
 from .errors import (
@@ -47,5 +62,19 @@ __all__ = [
     "ProviderError",
     "ModelNotFoundError",
     "ConfigurationError",
+    # One-call API — the common case needs no client object.
+    "chat",
+    "stream",
+    "complete",
+    "run_tools",
+    "list_models",
+    "no_key_models",
+    "for_vendor",
+    "vendors",
+    "describe",
+    "best",
+    "status",
+    "reset",
+    "warnings",
     "__version__",
 ]

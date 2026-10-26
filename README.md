@@ -15,7 +15,68 @@ with FreeAIClient() as client:
     print(reply.usage.total_tokens)
 ```
 
-## What's actually free
+### Or skip the client entirely
+
+```python
+import freeaipi
+
+freeaipi.chat("Reply with exactly: OK").content      # one call, no setup
+freeaipi.complete("Summarise: ...")
+freeaipi.list_models()
+freeaipi.best(requires_tools=True)
+[c.delta for c in freeaipi.stream("Tell me a story")]
+```
+
+A single shared client is built on first use and reused, because construction
+performs network discovery. Call `freeaipi.reset()` after changing credentials in
+a long-lived process.
+
+## Install
+
+```bash
+pip install freeaipi          # PyPI
+pip install -e .              # this repo
+```
+
+Requires Python 3.10+. Only dependency is `httpx`.
+
+### Node / TypeScript
+
+The same library ships for JavaScript:
+
+```bash
+npm install freeaipi
+```
+
+```javascript
+import { init, chat, listModels, vendors } from "freeaipi";
+
+await init();                       // async: performs discovery
+chat("Reply with exactly: OK", { model: "pollinations/openai-fast" }).then(r => {
+  console.log(r.content);           // OK
+  console.log(r.usage.totalTokens);
+});
+```
+
+Requires Node 18+. Zero dependencies. The API mirrors the Python one — same
+providers, same presets, same error classes:
+
+```javascript
+import { init, stream, runTools, listModels } from "freeaipi";
+await init();
+
+for await (const c of stream("Tell me a story", { maxTokens: 512 })) {
+  if (c.delta) process.stdout.write(c.delta);
+  else if (c.toolCall) console.error(c.toolCall.name);
+}
+```
+
+Or the CLI:
+
+```bash
+npx freeaipi list --vendor groq
+npx freeaipi chat "Reply with exactly: OK" --stream
+```
 
 Three kinds of backend, because "free" means three different things:
 
@@ -264,16 +325,27 @@ handling differs in kind:
 ## Testing
 
 ```bash
-py -3.12 -m pytest tests/                  # 153 tests, no network
-LIVE=1 py -3.12 -m pytest tests/test_live.py   # real endpoints
+# Python — 232 tests, no network
+py -3.12 -m pytest tests/
+LIVE=1 py -3.12 -m pytest tests/test_live.py     # real endpoints
+
+# Node — 53 tests, no network
+cd js && npm test
+cd js && LIVE=1 npm test                         # real endpoints
 ```
 
-The offline suite injects a `MockTransport` instead of monkeypatching `httpx`, so
-provider request-shaping runs exactly as it ships. The live suite exists because
-a mock cannot tell you a provider changed its wire format — and the two
-behaviours that matter most here, the anonymous 402 quota and whether a
+The offline suites inject a fake transport instead of monkeypatching `httpx` /
+`fetch`, so provider request-shaping runs exactly as it ships. The live suites
+exist because a mock cannot tell you a provider changed its wire format — and
+the two behaviours that matter most here, the anonymous 402 quota and whether a
 `referrer` lifts it, are invisible offline. Both were found by calling the real
-endpoint and both are asserted in `tests/test_live.py`.
+endpoint and both are asserted in `tests/test_live.py` and
+`js/tests/live.test.mjs`.
+
+The JS live suite is what caught a real streaming bug: `streamLines` yielded raw
+decoded chunks, so an SSE frame split across two reads never parsed and the
+caller received no text at all — with no error. It now buffers and emits
+complete lines.
 
 ## Scope, honestly
 

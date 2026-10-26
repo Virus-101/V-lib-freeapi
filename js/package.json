@@ -1,0 +1,54 @@
+{
+  "name": "freeaipi",
+  "version": "0.1.0",
+  "description": "One interface for every free LLM API. No paid tiers, no credit cards.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "freeaipi": "./dist/cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "llm",
+    "free",
+    "openai-compatible",
+    "openrouter",
+    "pollinations",
+    "ollama",
+    "groq",
+    "api"
+  ],
+  "author": "Virus-101",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Virus-101/freeaipi"
+  },
+  "bugs": {
+    "url": "https://github.com/Virus-101/freeaipi/issues"
+  },
+  "homepage": "https://github.com/Virus-101/freeaipi",
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.11.0"
+  }
+}
