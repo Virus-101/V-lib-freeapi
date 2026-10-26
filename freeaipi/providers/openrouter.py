@@ -42,7 +42,7 @@ class OpenRouterProvider(BaseProvider):
         return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": "https://github.com/Virus-101/freeaipi",
+            "HTTP-Referer": "https://github.com/Virus-101/V-lib-freeapi",
             "X-Title": "freeaipi",
         }
 

@@ -24,7 +24,7 @@ from ..errors import ConfigurationError, ProviderError
 from ..models import Capabilities, ChatChunk, ChatResponse, ModelInfo, Provider, ToolCall
 
 #: Extra headers worth sending to the aggregators that rank referrals.
-DEFAULT_HEADERS = {"X-Title": "freeaipi", "HTTP-Referer": "https://github.com/Virus-101/freeaipi"}
+DEFAULT_HEADERS = {"X-Title": "freeaipi", "HTTP-Referer": "https://github.com/Virus-101/V-lib-freeapi"}
 
 
 class OpenAICompatProvider(BaseProvider):
