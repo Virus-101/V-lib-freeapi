@@ -1,0 +1,51 @@
+"""freeaipi — one interface for every free LLM API.
+
+Covers three kinds of zero-cost backend:
+
+1. **Native free tiers** — services that serve a free model with no account
+   (Pollinations) or a generous free quota.
+2. **OpenRouter free models** — 17+ models on the `:free` tier, gated behind a
+   free account key.
+3. **Local** — Ollama and any llama.cpp / vLLM / LM Studio server on this
+   machine. The only backend with no network dependency and no rate limit.
+
+Nothing here charges money. Every model is either free, open-weight, or running
+on your own hardware.
+"""
+
+from __future__ import annotations
+
+from .client import FreeAIClient
+from .models import ModelInfo, Provider, Capabilities
+from .response import ChatResponse, ChatChunk, ToolCall, Usage
+from .errors import (
+    FreeAIPIError,
+    AuthenticationError,
+    RateLimitError,
+    ProviderError,
+    ModelNotFoundError,
+    ConfigurationError,
+)
+from .registry import Registry, create_default_registry
+
+__version__ = "0.1.0"
+
+__all__ = [
+    "FreeAIClient",
+    "Registry",
+    "create_default_registry",
+    "ModelInfo",
+    "Provider",
+    "Capabilities",
+    "ChatResponse",
+    "ChatChunk",
+    "ToolCall",
+    "Usage",
+    "FreeAIPIError",
+    "AuthenticationError",
+    "RateLimitError",
+    "ProviderError",
+    "ModelNotFoundError",
+    "ConfigurationError",
+    "__version__",
+]

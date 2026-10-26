@@ -1,0 +1,238 @@
+# freeaipi
+
+One Python interface for **every free LLM API**. No paid tiers, no credit cards —
+every model in the catalogue is either free, open-weight, or running on your own
+hardware.
+
+```python
+from freeaipi import FreeAIClient
+
+with FreeAIClient() as client:
+    # No key, no configuration — works out of the box.
+    reply = client.chat("Reply with exactly: OK")
+    print(reply.content)          # OK
+    print(reply.cost_usd)         # 0.0
+    print(reply.usage.total_tokens)
+```
+
+## What's actually free
+
+Three kinds of backend, because "free" means three different things:
+
+| Kind | Backend | Key | Limit |
+|---|---|---|---|
+| **Zero-key hosted** | Pollinations | none | 1 reply / 30 s per IP anonymous; a `referrer` lifts it |
+| **Free-tier hosted** | OpenRouter `:free` | free account | per-key quota; 17+ models |
+| **Local** | Ollama, llama.cpp, vLLM, LM Studio | none | none — your hardware |
+
+### Pollinations (no key at all)
+
+```
+POST https://text.pollinations.ai/openai
+```
+
+OpenAI-shaped, answers with no credential, returns real token usage and a
+`user_tier: "anonymous"` marker. The anonymous tier is quota-limited to one reply
+per 30 seconds per IP, and it reports that as an HTTP 402 with the retry delay
+in the body:
+
+```json
+{"status": 402, "error": {"code": "FREE_LIMIT",
+ "message": "Free limit reached: 1 reply every 30 seconds per IP. Retry after 15s, ..."}}
+```
+
+`freeaipi` parses that into a `RateLimitError` carrying `retry_after`, and sends a
+`referrer` by default, which was observed to lift the anonymous quota entirely.
+
+### OpenRouter `:free`
+
+`GET /api/v1/models` is public, so the catalogue is fetched without a key.
+`POST /chat/completions` needs a free account key — free *money*, not free
+*account*. Without a key the registry holds no OpenRouter entries and reports one
+warning saying how many are known; a catalogue of models you cannot call is worse
+than an honest message about what unlocks them.
+
+Free models include `nvidia/nemotron-3-ultra-550b-a55b:free` (1M context),
+`poolside/laguna-xs-2.1:free` and `cohere/north-mini-code:free`. The list changes
+weekly, so it is fetched at runtime rather than hardcoded.
+
+### Local
+
+Ollama, llama.cpp, vLLM, LM Studio, Jan and GPT4All all speak the OpenAI chat
+protocol on localhost, so they share one implementation. Ollama's native
+`/api/chat` NDJSON is also supported, because it exposes `num_ctx` and other
+options the OpenAI-compat endpoint does not.
+
+Discovery probes the well-known ports at client construction. A dead port is
+skipped silently — on a normal desktop four of five are always down.
+
+## Install
+
+```bash
+pip install freeaipi          # from PyPI, once published
+pip install -e .              # from this repo
+```
+
+Requires Python 3.10+. Only dependency is `httpx`.
+
+## Usage
+
+### Choose a model
+
+```python
+client.chat("hi")                                  # auto-pick
+client.chat("hi", model="pollinations/openai-fast")
+client.chat("hi", tools=[...])                     # auto-pick one that can call tools
+```
+
+`best()` is deterministic and prefers a model that needs no key, then the largest
+context window:
+
+```python
+client.best()                              # 'local/llama3' (no key, biggest ctx)
+client.best(requires_tools=True)
+client.best(prefer_no_key=False)           # allow keyed models
+```
+
+Registry keys are `provider/model`. A bare model id works when unique; an
+ambiguous one raises and lists the options rather than guessing.
+
+### Stream
+
+```python
+for chunk in client.stream("Tell me a story", max_tokens=512):
+    if chunk.delta:
+        print(chunk.delta, end="", flush=True)
+    elif chunk.reasoning:
+        pass          # chain-of-thought arrives separately, not glued to the answer
+    elif chunk.tool_call:
+        print(f"calling {chunk.tool_call['name']}")
+```
+
+### Tool calling
+
+```python
+tools = [{"type": "function", "function": {
+    "name": "get_weather",
+    "description": "Get weather for a city",
+    "parameters": {"type": "object",
+                   "properties": {"city": {"type": "string"}},
+                   "required": ["city"]}}}]
+
+# Blocking
+reply = client.chat("Weather in Paris?", tools=tools)
+reply.tool_calls[0].name        # 'get_weather'
+reply.tool_calls[0].arguments   # {'city': 'Paris'}
+
+# Or drive the loop yourself
+result = client.run_tools(
+    messages=[{"role": "user", "content": "Weather in Paris?"}],
+    tools=tools,
+    handlers={"get_weather": lambda city: f"{city}: 22C, clear"},
+)
+```
+
+`run_tools` executes every requested tool, appends results as `tool` messages, and
+repeats until the model stops calling tools. A handler that raises becomes an
+`error: ...` tool result rather than killing the turn. Hitting `max_rounds` is
+recorded in `result.raw["round_cap_reached"]` — a silent stop at the cap looks
+exactly like a natural finish otherwise.
+
+### Fallback
+
+```python
+client.chat("hi", model="pollinations/openai-fast",
+            fallback=["openrouter/nvidia/nemotron-3:free"])
+```
+
+A quota error is **not** fallen back from: switching models to dodge a rate limit
+hides the problem from the caller, who then cannot back off correctly.
+
+### Credentials
+
+```bash
+export OPENROUTER_API_KEY=sk-or-v1-...
+export POLLINATIONS_API_KEY=...     # optional; lifts the anonymous quota
+```
+
+```python
+FreeAIClient(openrouter_key="sk-or-v1-...")   # explicit beats env
+```
+
+Keys are resolved per request, never captured at construction — a token read once
+at startup is a bug that only appears an hour later. Logs and `status()` report
+credential *presence*, never the value:
+
+```python
+client.status()["credentials"]   # {'openrouter': '<absent>', 'pollinations': '<set len=40 prefix=sk-o…>'}
+```
+
+### Catalogue
+
+```python
+client.list_models()                                # everything registered
+client.list_models(provider=Provider.OPENROUTER)
+client.list_models(requires_tools=True)
+client.list_models(requires_vision=True)
+client.no_key_models()                              # usable with no credential
+client.describe("pollinations/openai-fast")
+client.warnings                                     # non-fatal discovery problems
+```
+
+## CLI
+
+```bash
+freeaipi list                    # every model usable with no key
+freeaipi list --no-key-only      # include keyed models
+freeaipi list --provider openrouter --json
+
+freeaipi chat "Reply with exactly: OK"
+freeaipi chat "Weather in Paris?" --tools --max-tokens 512
+freeaipi chat "hi" --stream
+freeaipi chat "hi" --json        # full response incl. usage and reasoning
+
+freeaipi check                   # registry summary + credential presence
+```
+
+## Errors
+
+Every error is a subclass of `FreeAIPIError`. The subclasses exist because the
+handling differs in kind:
+
+| Error | Meaning | Fix |
+|---|---|---|
+| `ConfigurationError` | credential/setting missing | set the env var, start Ollama |
+| `AuthenticationError` | 401/403 — key rejected | fix the key |
+| `RateLimitError` | 402/429 — quota | sleep `retry_after`, then retry |
+| `ProviderError` | other non-success | read `status_code` / `body` |
+| `ModelNotFoundError` | id not in registry | check the message for valid keys |
+
+## Testing
+
+```bash
+py -3.12 -m pytest tests/                  # 153 tests, no network
+LIVE=1 py -3.12 -m pytest tests/test_live.py   # real endpoints
+```
+
+The offline suite injects a `MockTransport` instead of monkeypatching `httpx`, so
+provider request-shaping runs exactly as it ships. The live suite exists because
+a mock cannot tell you a provider changed its wire format — and the two
+behaviours that matter most here, the anonymous 402 quota and whether a
+`referrer` lifts it, are invisible offline. Both were found by calling the real
+endpoint and both are asserted in `tests/test_live.py`.
+
+## Scope, honestly
+
+- **Not covered:** paid APIs. Nothing here charges money, which is the point.
+- **Local models are not downloaded.** `freeaipi` calls whatever your local server
+  is serving; it does not fetch weights. Ollama must be running for local models
+  to appear.
+- **Capability metadata for local models is inferred from the name.** Reading it
+  properly means parsing the GGUF header. The values are a hint, marked as such.
+- **The free catalogues change.** Pollinations and OpenRouter are fetched at
+  runtime so new models appear without a library change; a network outage during
+  discovery leaves a reduced catalogue plus a warning, never a crash.
+
+## Licence
+
+MIT
