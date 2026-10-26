@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  .wrap { display:flex; flex-direction:column; gap:18px; max-width:760px; }
+  h1 { font-size:20px; margin:0 0 4px 0; }
+  .sub { color:var(--muted-foreground); font-size:13px; margin:0; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .card { border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .card h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em;
+             color:var(--muted-foreground); margin:0 0 10px 0; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td { padding:5px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  .k { color:var(--muted-foreground); white-space:nowrap; padding-right:14px; }
+  code { font-family:ui-monospace,Consolas,monospace; font-size:12px;
+         background:var(--accent); padding:1px 5px; border-radius:4px; }
+  .tag { display:inline-block; font-size:10px; padding:2px 6px; border-radius:4px;
+         font-weight:600; letter-spacing:.02em; }
+  .t-none { background:#1a4d2e; color:#7ee2a8; }
+  .t-key  { background:#4d3a1a; color:#f0c975; }
+  .t-local{ background:#1a3a4d; color:#7ec9f0; }
+  pre { margin:0; padding:12px; border-radius:8px; background:var(--card);
+        border:1px solid var(--border); font-size:12px; line-height:1.55;
+        font-family:ui-monospace,Consolas,monospace; overflow-x:auto; }
+  .c { color:var(--muted-foreground); }
+  .ok { color:#7ee2a8; }
+  .warn { color:#f0c975; }
+  .stat { display:flex; gap:16px; }
+  .stat div { flex:1; }
+  .stat .n { font-size:22px; font-weight:600; line-height:1.1; }
+  .stat .l { font-size:11px; color:var(--muted-foreground); }
+  .bar { height:6px; border-radius:3px; background:var(--border); overflow:hidden; margin-top:4px; }
+  .bar i { display:block; height:100%; background:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div>
+    <h1>freeaipi <span class="sub">— one interface for every free LLM API</span></h1>
+    <p class="sub">Verified against the live endpoints on 2026-10-26 · package installs clean · 153 tests offline, 13 live</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Catalogue — as discovered, not hardcoded</h2>
+      <table>
+        <tr><td><code>pollinations/openai-fast</code></td>
+            <td><span class="tag t-none">no key</span></td>
+            <td>GPT-OSS 20B · tools · reasoning</td></tr>
+        <tr><td><code>openrouter/nemotron-3-ultra…:free</code></td>
+            <td><span class="tag t-key">key</span></td>
+            <td>1M ctx · frontier reasoning</td></tr>
+        <tr><td><code>openrouter/poolside/laguna-xs-2.1:free</code></td>
+            <td><span class="tag t-key">key</span></td>
+            <td>coding agent</td></tr>
+        <tr><td><code>openrouter/cohere/north-mini-code:free</code></td>
+            <td><span class="tag t-key">key</span></td>
+            <td>agentic coding</td></tr>
+        <tr><td><code>openrouter/google/gemma-4-31b-it:free</code></td>
+            <td><span class="tag t-key">key</span></td>
+            <td>multimodal · 256K ctx</td></tr>
+        <tr><td><code>local/*</code></td>
+            <td><span class="tag t-local">local</span></td>
+            <td>Ollama · llama.cpp · vLLM · LM Studio</td></tr>
+      </table>
+      <p class="sub" style="margin:10px 0 0 0">
+        17 free OpenRouter models fetched from the public catalogue at runtime.
+        Without a key the registry holds none — one warning states the count.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Live call — real endpoint, not a mock</h2>
+      <pre><span class="c">&gt;&gt;&gt;</span> client.chat(<span class="ok">"Reply with exactly: OK"</span>,
+...         model=<span class="ok">"pollinations/openai-fast"</span>)</pre>
+      <table>
+        <tr><td class="k">content</td><td><span class="ok">'OK'</span></td></tr>
+        <tr><td class="k">tier</td><td>anonymous</td></tr>
+        <tr><td class="k">tokens</td><td>313 in · 26 out · 339 total</td></tr>
+        <tr><td class="k">latency</td><td>1,981 ms</td></tr>
+        <tr><td class="k">cost</td><td><span class="ok">$0.0000</span></td></tr>
+        <tr><td class="k">reasoning</td><td>kept separate, not glued on</td></tr>
+      </table>
+      <p class="sub" style="margin:10px 0 0 0">
+        Streaming, tool calling and JSON mode all exercised against the live API.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>The quota, handled as a domain signal</h2>
+    <pre><span class="c"># anonymous tier, no referrer → HTTP 402</span>
+{"status":402,"error":{"code":"FREE_LIMIT",
+ "message":"Free limit reached: 1 reply every 30 seconds per IP.
+           <span class="warn">Retry after 15s</span>, or get unlimited replies…"}}
+
+<span class="c"># freeaipi raises, carrying the provider's own delay:</span>
+RateLimitError(retry_after=<span class="ok">15.0</span>)   <span class="c"># parsed from the body</span>
+
+<span class="c"># and with a referrer (sent by default), the quota disappears entirely</span></pre>
+    <p class="sub" style="margin:10px 0 0 0">
+      A 500 that survives its retries becomes <code>ProviderError</code>, never
+      <code>RateLimitError</code> — sleeping on a permanent failure hides the cause.
+      Fallback never fires past a quota: dodging a rate limit by switching models
+      hides the limit from the caller.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Verification</h2>
+    <div class="stat">
+      <div><div class="n">153</div><div class="l">tests pass offline</div>
+        <div class="bar"><i style="width:100%"></i></div></div>
+      <div><div class="n">13</div><div class="l">live tests pass</div>
+        <div class="bar"><i style="width:100%"></i></div></div>
+      <div><div class="n">0</div><div class="l">failures</div>
+        <div class="bar"><i style="width:0%"></i></div></div>
+      <div><div class="n">$0</div><div class="l">spent on inference</div>
+        <div class="bar"><i style="width:0%"></i></div></div>
+    </div>
+    <table style="margin-top:14px">
+      <tr><td class="k">imports from site-packages</td><td><span class="ok">✓</span></td><td class="c">not the source tree</td></tr>
+      <tr><td class="k">console script <code>freeaipi</code></td><td><span class="ok">✓</span></td><td class="c">declared in [project.scripts]</td></tr>
+      <tr><td class="k">wheel builds</td><td><span class="ok">✓</span></td><td class="c">36 KB, pure Python</td></tr>
+      <tr><td class="k">credentials in logs</td><td><span class="ok">none</span></td><td class="c">presence + length only</td></tr>
+      <tr><td class="k">secrets staged to git</td><td><span class="ok">none</span></td><td class="c">.env check-ignore'd, pattern-scanned</td></tr>
+      <tr><td class="k">repo root</td><td><span class="ok">C:\dev\freeaipi</span></td><td class="c">no parent-repo bleed</td></tr>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>
