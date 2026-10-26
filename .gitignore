@@ -21,6 +21,13 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Build / publish artifacts
+dist/
+build/
+*.egg-info/
+*.tgz
+__pycache__/
+
 # Editor / OS
 .idea/
 .vscode/
