@@ -54,6 +54,8 @@ class FreeAIClient:
         include_local: bool = True,
         include_openrouter: bool = True,
         include_pollinations: bool = True,
+        include_compat: bool = True,
+        compat_specs: list[Any] | None = None,
         max_retries: int = 3,
     ):
         self._or_key = resolve_key(openrouter_key, "openrouter")
@@ -68,6 +70,8 @@ class FreeAIClient:
             include_local=include_local,
             include_openrouter=include_openrouter,
             include_pollinations=include_pollinations,
+            include_compat=include_compat,
+            compat_specs=compat_specs,
         )
 
     # ── lifecycle ───────────────────────────────────────────────────────────
@@ -89,12 +93,26 @@ class FreeAIClient:
     # ── catalogue ───────────────────────────────────────────────────────────
 
     def list_models(self, **filters: Any) -> list[ModelInfo]:
-        """List models, optionally filtered (``provider=``, ``requires_tools=``…)."""
+        """List models, optionally filtered.
+
+        Common filters: ``provider=``, ``namespace=``, ``requires_tools=``,
+        ``requires_vision=``, ``requires_reasoning=``, ``auth_required=``,
+        ``prefix=``. ``namespace`` selects a vendor (``groq``, ``cerebras``)
+        for the generic OpenAI-compatible endpoints.
+        """
         return self.registry.list(**filters)
 
     def no_key_models(self) -> list[ModelInfo]:
         """Models usable with no credential at all."""
         return self.registry.list(auth_required=False)
+
+    def for_vendor(self, namespace: str) -> list[ModelInfo]:
+        """Every model from one vendor (``groq``, ``pollinations``, ``local``)."""
+        return self.registry.list(namespace=namespace)
+
+    def vendors(self) -> list[str]:
+        """Vendor namespaces currently registered."""
+        return self.registry.providers_in_use()
 
     def describe(self, key: str) -> ModelInfo:
         model, _ = self.registry.get(key)

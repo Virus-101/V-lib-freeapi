@@ -44,6 +44,9 @@ def stub_client(monkeypatch):
         def no_key_models(self):
             return self.registry.list(auth_required=False)
 
+        def vendors(self):
+            return self.registry.providers_in_use()
+
         def chat(self, message, **kwargs):
             from freeaipi.models import ChatResponse, Usage
 
@@ -97,6 +100,12 @@ class TestList:
         assert main(["list", "--provider", "openrouter"]) == 0
         out = capsys.readouterr().out
         assert "nemotron" not in out  # keyed, and hidden by default
+
+    def test_vendor_filter(self, stub_client, capsys):
+        assert main(["list", "--vendor", "pollinations"]) == 0
+        out = capsys.readouterr().out
+        assert "pollinations/openai-fast" in out
+        assert "openrouter" not in out
 
 
 class TestChat:

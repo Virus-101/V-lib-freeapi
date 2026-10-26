@@ -26,7 +26,8 @@ def _build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     ls = sub.add_parser("list", help="List every known free model.")
-    ls.add_argument("--provider", default=None, help="Filter by provider.")
+    ls.add_argument("--provider", default=None, help="Filter by provider kind.")
+    ls.add_argument("--vendor", default=None, help="Filter by vendor (groq, cerebras…).")
     ls.add_argument("--json", action="store_true", help="Emit JSON.")
     ls.add_argument("--no-key-only", action="store_true",
                     help="Include models that require an account key.")
@@ -56,20 +57,29 @@ def main(argv: list[str] | None = None) -> int:
         # ConfigurationError, and a traceback is the wrong answer for that.
         client = FreeAIClient(include_local=not getattr(args, "no_local", False))
         if args.cmd == "list":
-            models = client.list_models(provider=args.provider)
+            filters = {}
+            if args.provider:
+                filters["provider"] = args.provider
+            if args.vendor:
+                filters["namespace"] = args.vendor
+            models = client.list_models(**filters)
             if not args.no_key_only:
                 models = [m for m in models if not m.auth_required]
             if args.json:
                 print(json.dumps([m.to_dict() for m in models], indent=2))
             else:
-                for m in sorted(models, key=lambda x: (x.provider.value, x.model_id)):
+                for m in sorted(models, key=lambda x: (x.label, x.model_id)):
                     caps = m.capabilities
                     flags = "".join(
                         c for c, on in (("T", caps.tools), ("V", caps.vision), ("R", caps.reasoning)) if on
                     ) or "-"
                     key = "key" if m.auth_required else "no-key"
                     print(f"{m.key:52s} [{flags}] {key:6s} {m.name}")
-                print(f"\n{len(models)} model(s). Warnings: {client.warnings or 'none'}")
+                scope = f" (filtered)" if (args.provider or args.vendor) else ""
+                print(f"\n{len(models)} model(s){scope} across "
+                      f"{len(set(m.label for m in models)) or 0} of "
+                      f"{len(client.vendors())} vendor(s). "
+                      f"Warnings: {client.warnings or 'none'}")
             return 0
 
         if args.cmd == "chat":

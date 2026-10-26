@@ -24,6 +24,12 @@ class Provider(str, Enum):
     INCEPTION = "inception"
     LOCAL = "local"
     MOCK = "mock"
+    #: Any OpenAI-compatible endpoint configured at runtime (Groq, Cerebras,
+    #: SambaNova, Together, Fireworks, Mistral, DeepSeek, Novita, a private
+    #: vLLM…). The *kind* is always this member; the per-vendor name lives in
+    #: :attr:`ModelInfo.namespace`, so ``Provider.COMPAT`` stays a stable
+    #: dispatch target while ``groq/llama-3.3`` reads correctly in the registry.
+    COMPAT = "openai_compat"
 
     def __str__(self) -> str:  # pragma: no cover - trivial
         return self.value
@@ -60,6 +66,12 @@ class ModelInfo:
     ``provider_model_id`` is the id the backend expects on the wire; it differs
     from ``model_id`` when a provider is addressed through an alias
     (Pollinations serves ``gpt-oss-20b`` under the alias ``openai-fast``).
+
+    ``namespace`` is the name used in the registry key and in logs. It defaults
+    to the provider kind and is overridden for generic OpenAI-compatible
+    endpoints so the key reads ``groq/llama-3.3-70b`` rather than
+    ``openai_compat/llama-3.3-70b`` — the kind is still ``Provider.COMPAT`` for
+    dispatch, but the *vendor* is what a user types.
     """
 
     model_id: str
@@ -71,16 +83,23 @@ class ModelInfo:
     auth_required: bool = False
     rate_limit: str = ""
     notes: str = ""
+    namespace: str | None = None
+
+    @property
+    def label(self) -> str:
+        """The vendor name used in the registry key."""
+        return self.namespace or self.provider.value
 
     @property
     def key(self) -> str:
-        """Registry key, ``provider/model_id``."""
-        return f"{self.provider.value}/{self.model_id}"
+        """Registry key, ``<namespace>/<model_id>``."""
+        return f"{self.label}/{self.model_id}"
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "model_id": self.model_id,
             "provider": self.provider.value,
+            "namespace": self.label,
             "provider_model_id": self.provider_model_id,
             "name": self.name,
             "key": self.key,

@@ -16,13 +16,26 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Iterator
 
-from .errors import ModelNotFoundError
+from .errors import ConfigurationError, ModelNotFoundError
 from .http import Transport
 from .models import Capabilities, ModelInfo, Provider
 from .providers.base import BaseProvider
 from .providers.local import LocalProvider, build_models as local_build_models, discover
 from .providers.openrouter import OpenRouterProvider, build_models as or_build_models
 from .providers.pollinations import PollinationsProvider, build_models as pl_build_models
+
+
+def _coerce_provider(value: Provider | str) -> Provider:
+    """Accept ``Provider.LOCAL`` or ``"local"``; raise on anything unknown."""
+    if isinstance(value, Provider):
+        return value
+    try:
+        return Provider(value)
+    except ValueError:
+        raise ModelNotFoundError(
+            f"Unknown provider kind '{value}'. Known: "
+            + ", ".join(p.value for p in Provider)
+        ) from None
 
 
 @dataclass
@@ -76,15 +89,22 @@ class Registry:
         requires_reasoning: bool | None = None,
         auth_required: bool | None = None,
         prefix: str = "",
+        namespace: str | None = None,
     ) -> list[ModelInfo]:
-        """Filter the catalogue. ``None`` means "do not filter on this"."""
-        if isinstance(provider, str):
-            provider = Provider(provider)
+        """Filter the catalogue.
+
+        ``provider`` accepts a :class:`Provider` or a provider-kind string.
+        ``namespace`` filters on the *vendor* name (``groq``, ``cerebras``),
+        which is what you want for generic OpenAI-compatible endpoints where
+        many vendors share one provider kind. ``None`` means "do not filter".
+        """
         out = []
         for m in self.models.values():
             if prefix and not m.key.startswith(prefix):
                 continue
-            if provider is not None and m.provider != provider:
+            if namespace is not None and m.label != namespace:
+                continue
+            if provider is not None and m.provider != _coerce_provider(provider):
                 continue
             c = m.capabilities
             if requires_tools is not None and c.tools != requires_tools:
@@ -99,13 +119,14 @@ class Registry:
         return out
 
     def by_provider(self) -> dict[str, list[ModelInfo]]:
+        """Group by vendor namespace (``groq``, ``pollinations``, ``local``)."""
         out: dict[str, list[ModelInfo]] = {}
         for m in self.models.values():
-            out.setdefault(m.provider.value, []).append(m)
+            out.setdefault(m.label, []).append(m)
         return out
 
     def providers_in_use(self) -> list[str]:
-        return sorted({m.provider.value for m in self.models.values()})
+        return sorted({m.label for m in self.models.values()})
 
     # ── mutation ────────────────────────────────────────────────────────────
 
@@ -130,6 +151,8 @@ def create_default_registry(
     include_local: bool = True,
     include_openrouter: bool = True,
     include_pollinations: bool = True,
+    include_compat: bool = True,
+    compat_specs: list[Any] | None = None,
 ) -> Registry:
     """Build a registry with discovery.
 
@@ -183,4 +206,82 @@ def create_default_registry(
         except Exception as exc:
             reg.warnings.append(f"local discovery failed: {exc}")
 
+    # ── Generic OpenAI-compatible free tiers ──────────────────────────────
+    if include_compat:
+        from .presets import enabled_specs, load_config_file, config_paths
+        from .providers.openai_compat import OpenAICompatProvider, fetch_catalogue
+
+        specs = list(compat_specs) if compat_specs is not None else enabled_specs()
+        for path in config_paths():
+            try:
+                specs.extend(load_config_file(path))
+            except Exception as exc:
+                reg.warnings.append(f"provider config {path} failed to load: {exc}")
+
+        for spec in specs:
+            try:
+                # Inside the try on purpose: a provider whose key is missing or
+                # whose catalogue is unreachable must leave the rest of the
+                # registry intact, exactly like the other discovery steps.
+                key = _spec_key(spec)
+                entries = fetch_catalogue(transport, spec, key)
+                if spec.models:
+                    entries = [m for m in entries if m.model_id in spec.models] or [
+                        _spec_only_model(spec, mid) for mid in spec.models
+                    ]
+                if spec.exclude:
+                    entries = [m for m in entries if m.model_id not in spec.exclude]
+                if not entries:
+                    reg.warnings.append(
+                        f"{spec.namespace}: no models discovered (key present but "
+                        "catalogue empty or unreachable)"
+                    )
+                for m in entries:
+                    reg.register(m, OpenAICompatProvider(m, transport, spec, spec.base_url, key))
+            except Exception as exc:
+                reg.warnings.append(f"{spec.namespace} discovery failed: {exc}")
+
     return reg
+
+
+def _spec_key(spec) -> str:
+    """Resolve a preset's credential from its env var.
+
+    Raises ``ConfigurationError`` only if the spec was handed in directly with
+    no key; auto-enabled specs already have one by construction.
+    """
+    from .credentials import resolve_key
+
+    cred = resolve_key(None, spec.namespace, env_var=spec.key_env or None)
+    if not cred.present and not spec.key_env:
+        # A config-file provider with no key_env and no key is a public
+        # endpoint (e.g. a local vLLM) — that is legitimate.
+        return ""
+    if not cred.present:
+        raise ConfigurationError(
+            f"{spec.namespace} is enabled but {spec.key_env} is not set."
+        )
+    return cred.value
+
+
+def _spec_only_model(spec, model_id: str) -> Any:
+    """Build a registry entry for an id named in config with no catalogue."""
+    return ModelInfo(
+        model_id=model_id,
+        provider=Provider.COMPAT,
+        provider_model_id=model_id,
+        name=model_id,
+        capabilities=Caps_from_id(model_id),
+        free=spec.free,
+        auth_required=bool(spec.key_env),
+        rate_limit=spec.rate_limit,
+        notes=spec.notes,
+        namespace=spec.namespace,
+    )
+
+
+def Caps_from_id(model_id: str):
+    """Name-based capability guess for a model named in config only."""
+    from .providers.local import _infer_caps
+
+    return _infer_caps(model_id)

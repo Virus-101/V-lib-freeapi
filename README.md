@@ -56,6 +56,57 @@ Free models include `nvidia/nemotron-3-ultra-550b-a55b:free` (1M context),
 `poolside/laguna-xs-2.1:free` and `cohere/north-mini-code:free`. The list changes
 weekly, so it is fetched at runtime rather than hardcoded.
 
+### Any OpenAI-compatible endpoint (config, not code)
+
+Nearly every vendor speaks the same protocol — `POST {base_url}/chat/completions`
+with a bearer token, plus `GET {base_url}/models` for discovery. A class per
+vendor would mean fifteen copies of identical code, so there is **one generic
+provider driven by a spec**. Adding a free tier is a config entry, not a library
+change.
+
+Curated presets ship for the known free tiers:
+
+| Preset | Env var | Free tier | Notes |
+|---|---|---|---|
+| `groq` | `GROQ_API_KEY` | yes | fastest inference; Llama, Qwen, Gemma, Mistral |
+| `cerebras` | `CEREBRAS_API_KEY` | yes | very high throughput |
+| `sambanova` | `SAMBANOVA_API_KEY` | yes | DeepSeek-V3, Llama-3.3, MiniMax; catalogue is public |
+| `together` | `TOGETHER_API_KEY` | grant | free credit on signup, then paid |
+| `fireworks` | `FIREWORKS_API_KEY` | yes | per-day token grant |
+| `mistral` | `MISTRAL_API_KEY` | yes | free plan excludes flagship models |
+| `novita` | `NOVITA_API_KEY` | yes | DeepSeek, Llama, Qwen |
+| `deepseek` | `DEEPSEEK_API_KEY` | **no** | priced; marked `free=False` deliberately |
+| `nous` | `NOUS_API_KEY` | **no** | priced; what Hermes uses |
+| `inception` | `INCEPTION_API_KEY` | **no** | priced |
+
+**Auto-enable:** a preset appears when its env var is set. No config file, no code
+change — set a key and the provider shows up in `list_models()`.
+
+```bash
+export GROQ_API_KEY=gsk_...
+freeaipi list --vendor groq
+```
+
+**Custom endpoints** via `FREEAIPI_PROVIDERS` pointing at a JSON file:
+
+```json
+{"providers": [
+  {"namespace": "myvllm", "base_url": "http://127.0.0.1:8000/v1",
+   "key_env": "MYVLLM_KEY", "free": true},
+  {"namespace": "private", "base_url": "http://10.0.0.5:8080/v1",
+   "free": true, "models": ["my-secret-70b"]}
+]}
+```
+
+The second entry has no `key_env`, so no auth header is sent — a private server
+with no `/models` endpoint works by listing ids explicitly.
+
+**Honesty about `free`:** the flag means the vendor publishes a no-cost tier, not
+that it is unlimited; the `rate_limit` field says the real constraint. Three
+presets are included *specifically to be marked not free* (`deepseek`, `nous`,
+`inception`) so the catalogue is never misread as a promise. `verified` records
+whether the endpoint was actually called during development rather than assumed.
+
 ### Local
 
 Ollama, llama.cpp, vLLM, LM Studio, Jan and GPT4All all speak the OpenAI chat
@@ -172,6 +223,9 @@ client.status()["credentials"]   # {'openrouter': '<absent>', 'pollinations': '<
 ```python
 client.list_models()                                # everything registered
 client.list_models(provider=Provider.OPENROUTER)
+client.list_models(namespace="groq")                # one vendor
+client.for_vendor("groq")
+client.vendors()                                    # ['groq', 'pollinations', 'local']
 client.list_models(requires_tools=True)
 client.list_models(requires_vision=True)
 client.no_key_models()                              # usable with no credential

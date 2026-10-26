@@ -80,7 +80,15 @@ class BaseProvider:
             return False
 
     def _merge_system(self, messages: list[dict[str, Any]], system: str | None) -> list[dict[str, Any]]:
-        """Prepend a system message without mutating the caller's list."""
+        """Prepend a system message without mutating the caller's list.
+
+        A bare string is coerced to a single user turn. The client does this,
+        but providers are reachable directly through ``registry.get()``, and
+        without the coercion ``list("hi")`` silently produces two one-character
+        messages — a request that looks valid and returns nonsense.
+        """
+        if isinstance(messages, str):
+            messages = [{"role": "user", "content": messages}]
         out = list(messages)
         if system:
             out.insert(0, {"role": "system", "content": system})
