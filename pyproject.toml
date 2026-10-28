@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "freeaipi"
-version = "0.1.0"
+version = "0.2.0"
 description = "One Python interface for every free LLM API — native free tiers, local models, and OpenRouter free models."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -30,9 +30,10 @@ Homepage = "https://github.com/Virus-101/V-lib-freeapi"
 
 [project.scripts]
 freeaipi = "freeaipi.cli:main"
+fllm = "freeaipi.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["freeaipi*"]
+include = ["freeaipi*", "fllm*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

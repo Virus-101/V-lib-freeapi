@@ -31,6 +31,26 @@ A single shared client is built on first use and reused, because construction
 performs network discovery. Call `freeaipi.reset()` after changing credentials in
 a long-lived process.
 
+## Short name and your own keys (0.2)
+
+`fllm` is the short import for the same library, and each developer keeps their
+own free keys on their own machine:
+
+```python
+import fllm
+fllm.chat("hello").content
+```
+
+```bash
+fllm init                # guided setup: where to get each free key, stored in ~/.freeaipi/keys.env
+fllm key list            # which keys are set (never the values)
+fllm usage               # your own calls and tokens, from a local ledger
+fllm serve               # local OpenAI-compatible gateway on http://127.0.0.1:8787/v1
+```
+
+A key already in the environment beats the stored file. `FREEAIPI_HOME` moves the
+state directory. Docs: https://virus-101.github.io/V-lib-freeapi/
+
 ## Install
 
 ```bash

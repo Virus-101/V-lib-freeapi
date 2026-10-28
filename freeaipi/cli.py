@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 
 from .client import FreeAIClient
@@ -17,7 +18,7 @@ from .errors import FreeAIPIError
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="freeaipi",
+        prog="fllm",
         description="Call every free LLM API from one interface.",
     )
     p.add_argument("--key", dest="key_name", choices=["openrouter", "pollinations"],
@@ -46,11 +47,100 @@ def _build_parser() -> argparse.ArgumentParser:
     chat.add_argument("--stream", action="store_true", help="Stream instead of blocking.")
 
     chk = sub.add_parser("check", help="Report credential presence and reachability.")
+
+    sub.add_parser("init", help="Set up your own free keys, step by step.")
+
+    key = sub.add_parser("key", help="Manage the keys stored on this machine.")
+    ksub = key.add_subparsers(dest="key_cmd", required=True)
+    kset = ksub.add_parser("set", help="Store a key (prompts, so it stays out of shell history).")
+    kset.add_argument("vendor", help="e.g. groq, openrouter, cerebras")
+    ksub.add_parser("list", help="Show which keys are stored (never the values).")
+    krm = ksub.add_parser("remove", help="Delete a stored key.")
+    krm.add_argument("vendor")
+
+    use = sub.add_parser("usage", help="Tokens and calls you have used, from the local ledger.")
+    use.add_argument("--days", type=float, default=0, help="Only the last N days.")
+    use.add_argument("--json", action="store_true")
+
+    srv = sub.add_parser("serve", help="Run a local OpenAI-compatible gateway.")
+    srv.add_argument("--host", default="127.0.0.1")
+    srv.add_argument("--port", type=int, default=8787)
     return p
+
+
+def _env_for(vendor: str) -> str | None:
+    from . import home
+
+    names = home.key_names()
+    if vendor in names:
+        return names[vendor]
+    return vendor if vendor.isupper() and vendor.endswith("_KEY") else None
+
+
+def _local_command(args: argparse.Namespace) -> int:
+    import getpass
+    import time
+
+    from . import home
+
+    if args.cmd == "usage":
+        since = time.time() - args.days * 86400 if args.days else 0.0
+        summary = home.usage_summary(since)
+        if args.json:
+            print(json.dumps(summary, indent=2))
+            return 0
+        print(f"{summary['calls']} call(s), {summary['tokens']:,} token(s)")
+        for model, row in sorted(summary["models"].items(), key=lambda kv: -kv[1]["tokens"]):
+            print(f"  {model:52s} {row['calls']:6d} calls {row['tokens']:12,d} tok")
+        return 0
+
+    if args.cmd == "serve":
+        from .gateway import serve
+
+        serve(args.host, args.port)
+        return 0
+
+    if args.cmd == "key":
+        if args.key_cmd == "list":
+            stored = home.read_keys()
+            for vendor, var in home.key_names().items():
+                state = "stored" if var in stored else ("env" if os.environ.get(var) else "-")
+                print(f"{vendor:12s} {var:22s} {state}")
+            return 0
+        var = _env_for(args.vendor)
+        if not var:
+            print(f"unknown vendor {args.vendor!r}; try: {', '.join(home.key_names())}", file=sys.stderr)
+            return 2
+        if args.key_cmd == "remove":
+            print("removed" if home.remove_key(var) else "no such stored key")
+            return 0
+        value = getpass.getpass(f"{var} (input hidden): ").strip()
+        if not value:
+            print("nothing entered", file=sys.stderr)
+            return 2
+        print(f"saved to {home.set_key(var, value)}")
+        return 0
+
+    # init: no key is needed to start; free accounts add models and quota.
+    print("freeaipi setup. Keys stay on this machine in", home.keys_path())
+    print("Pollinations and local models work with no key. Press Enter to skip any vendor.\n")
+    stored = home.read_keys()
+    for vendor, var in home.key_names().items():
+        if var in stored or os.environ.get(var):
+            print(f"{vendor}: already set")
+            continue
+        print(f"{vendor}: get a free key at {home.SIGNUP.get(vendor, '(vendor site)')}")
+        value = getpass.getpass(f"  {var}: ").strip()
+        if value:
+            home.set_key(var, value)
+    print('\nDone. Try:  fllm chat "hello"   |   fllm list   |   fllm serve')
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    if args.cmd in ("init", "key", "usage", "serve"):
+        return _local_command(args)
     client = None
     try:
         # Construction is inside the try: a missing credential raises

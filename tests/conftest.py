@@ -82,3 +82,9 @@ def local():
 @pytest.fixture
 def fake_response():
     return FakeResponse
+
+
+@pytest.fixture(autouse=True)
+def _isolated_home(tmp_path, monkeypatch):
+    """Keep each test's keys and usage ledger out of the developer's real home."""
+    monkeypatch.setenv("FREEAIPI_HOME", str(tmp_path / "freeaipi-home"))

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fllm: free LLM APIs, one import</title>
+<meta name="description" content="One Python and Node interface for free LLM APIs. Bring your own free keys, keep them on your machine, run a local OpenAI-compatible gateway.">
+<style>
+:root{--bg:#fafaf7;--fg:#1c1c1a;--muted:#62625c;--card:#fff;--line:#e4e3dc;--accent:#0f6b4f;--code:#f1f0ea}
+@media (prefers-color-scheme:dark){:root{--bg:#121413;--fg:#ecebe6;--muted:#9a9a92;--card:#1a1d1b;--line:#2b2f2c;--accent:#4ed1a1;--code:#1f2321}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px}
+header{padding:56px 0 24px}
+h1{font-size:clamp(2rem,6vw,3rem);line-height:1.1;margin:0 0 12px;letter-spacing:-.02em}
+h1 span{color:var(--accent)}
+h2{font-size:1.4rem;margin:48px 0 8px;letter-spacing:-.01em}
+h3{font-size:1rem;margin:24px 0 4px}
+p{margin:8px 0}.lead{font-size:1.15rem;color:var(--muted);max-width:60ch}
+nav{display:flex;flex-wrap:wrap;gap:6px 18px;margin:20px 0 0;font-size:.92rem}
+a{color:var(--accent)}
+pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font:13.5px/1.55 ui-monospace,Consolas,monospace;margin:10px 0}
+code{font:.9em ui-monospace,Consolas,monospace;background:var(--code);padding:1px 5px;border-radius:4px}
+pre code{background:none;padding:0}
+table{width:100%;border-collapse:collapse;font-size:.92rem;margin:12px 0}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.steps{counter-reset:s;list-style:none;padding:0}
+.steps li{counter-increment:s;position:relative;padding:0 0 16px 44px}
+.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--bg);display:grid;place-items:center;font-weight:700;font-size:.9rem}
+.note{border-left:3px solid var(--accent);background:var(--card);padding:10px 14px;border-radius:0 8px 8px 0;margin:14px 0;font-size:.95rem}
+footer{margin:64px 0 40px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Free LLM APIs.<br><span>One import.</span></h1>
+  <p class="lead"><code>fllm</code> gives you one interface to every free LLM backend: no-key hosted models, free-tier vendors you sign up to yourself, and models on your own machine. Your keys and usage stay on your computer.</p>
+  <nav>
+    <a href="#install">Install</a><a href="#setup">Your own keys</a><a href="#use">Use it</a>
+    <a href="#gateway">Local gateway</a><a href="#cli">CLI</a><a href="#providers">Providers</a>
+    <a href="#limits">Limits</a><a href="https://github.com/Virus-101/V-lib-freeapi">GitHub</a>
+  </nav>
+</header>
+
+<h2 id="why">What it is</h2>
+<p>Free tiers are scattered: each vendor has its own endpoint, key, quota and quirks. <code>fllm</code> puts them behind one call. You bring your own free accounts, so every developer works from their own quota instead of a shared one.</p>
+<p>Nothing is hosted for you and nothing is sent to us. There is no server in the middle. The library calls the vendors directly from your machine.</p>
+
+<h2 id="install">1. Install</h2>
+<pre><code>pip install freeaipi        # gives you both `import freeaipi` and the short `import fllm`
+npm install freeaipi        # Node 18+, zero dependencies</code></pre>
+<p>Python 3.10+. The only dependency is <code>httpx</code>.</p>
+
+<h2 id="setup">2. Set up your own keys</h2>
+<p>Two backends need no key at all: Pollinations (rate-limited per IP) and any local model server. For more models and quota, create free accounts and store the keys locally:</p>
+<pre><code>fllm init</code></pre>
+<p>The wizard walks through each vendor, shows where to get a free key, and saves what you enter to <code>~/.freeaipi/keys.env</code> (hidden input, owner-only permissions where the OS supports it). Press Enter to skip any vendor.</p>
+<ol class="steps">
+  <li><strong>Sign up</strong> for the free tier of the vendors you want (links are shown by <code>fllm init</code>).</li>
+  <li><strong>Paste each key</strong> into the wizard, or later with <code>fllm key set groq</code>.</li>
+  <li><strong>Check</strong> with <code>fllm key list</code>. It shows which keys are set, never the values.</li>
+</ol>
+<div class="note">A key already set in your environment always wins over the stored file, so CI and one-off runs behave as you expect. Set <code>FREEAIPI_HOME</code> to keep the state somewhere else.</div>
+
+<h2 id="use">3. Use it</h2>
+<pre><code>import fllm
+
+print(fllm.chat("Reply with exactly: OK").content)
+
+fllm.list_models()                       # every free model you can reach
+fllm.best(requires_tools=True)           # pick one by capability
+for c in fllm.stream("Tell me a story"):
+    print(c.delta, end="")</code></pre>
+<p><code>fllm</code> and <code>freeaipi</code> are the same library. Use whichever you prefer.</p>
+
+<h3>Tool calling</h3>
+<pre><code>def get_time(): return "12:00"
+tools = [{"type": "function", "function": {
+    "name": "get_time", "description": "Current time",
+    "parameters": {"type": "object", "properties": {}}}}]
+r = fllm.run_tools([{"role": "user", "content": "What time is it?"}],
+                   tools, {"get_time": get_time})
+print(r.content)</code></pre>
+
+<h3>Fallback models</h3>
+<pre><code># keys are "&lt;vendor&gt;/&lt;model&gt;"; run fllm list to see yours
+fllm.chat("hi", model="pollinations/openai-fast",
+          fallback=["groq/&lt;a-model-from-fllm-list&gt;"])</code></pre>
+<p>Fallback covers errors and outages. It does not trigger on a rate limit, because a quota is a signal to slow down, not to burn through a different vendor without telling you.</p>
+
+<h3>Track your own usage</h3>
+<pre><code>fllm usage              # calls and tokens per model, from your local ledger
+fllm usage --days 7</code></pre>
+<p>Every call appends a line to <code>~/.freeaipi/usage.jsonl</code> with the token counts the vendor reported. It is your own record on your own disk.</p>
+
+<h2 id="gateway">Local OpenAI-compatible gateway</h2>
+<p>Run one command and any tool that speaks the OpenAI API (the <code>openai</code> SDK, LangChain, editor plugins) can use your free models:</p>
+<pre><code>fllm serve                      # http://127.0.0.1:8787/v1</code></pre>
+<pre><code>from openai import OpenAI
+client = OpenAI(base_url="http://127.0.0.1:8787/v1", api_key="unused")
+client.chat.completions.create(model="auto",
+    messages=[{"role": "user", "content": "hello"}])</code></pre>
+<p><code>model="auto"</code> lets <code>fllm</code> pick. It listens on loopback only and uses your keys, so nothing is exposed.</p>
+
+<h2 id="cli">CLI reference</h2>
+<table>
+<tr><th>Command</th><th>What it does</th></tr>
+<tr><td><code>fllm init</code></td><td>Guided setup for your own free keys</td></tr>
+<tr><td><code>fllm key set|list|remove VENDOR</code></td><td>Manage stored keys</td></tr>
+<tr><td><code>fllm list [--vendor groq]</code></td><td>List free models</td></tr>
+<tr><td><code>fllm chat "..." [--stream]</code></td><td>One-shot chat</td></tr>
+<tr><td><code>fllm usage [--days N]</code></td><td>Your token and call totals</td></tr>
+<tr><td><code>fllm serve [--port N]</code></td><td>Local OpenAI-compatible gateway</td></tr>
+<tr><td><code>fllm check</code></td><td>Credential presence and reachability</td></tr>
+</table>
+
+<h2 id="providers">Providers</h2>
+<table>
+<tr><th>Vendor</th><th>Key needed</th><th>Free-tier shape (from the vendor)</th></tr>
+<tr><td>Pollinations</td><td>No</td><td>Anonymous, rate-limited per IP</td></tr>
+<tr><td>Local (Ollama, llama.cpp, vLLM, LM Studio)</td><td>No</td><td>Your hardware, no quota</td></tr>
+<tr><td>OpenRouter <code>:free</code> models</td><td>Free account</td><td>Free-tier models, with limits</td></tr>
+<tr><td>Groq</td><td>Free account</td><td>Per-day request and token caps</td></tr>
+<tr><td>Cerebras</td><td>Free account</td><td>Per-hour and per-day caps</td></tr>
+<tr><td>SambaNova</td><td>Free account</td><td>Per-day quota</td></tr>
+<tr><td>Mistral</td><td>Free account</td><td>Discovery plan, per-day message cap</td></tr>
+<tr><td>Fireworks, Together, Novita</td><td>Free account</td><td>Signup grants; the Together grant ends and then it is paid</td></tr>
+</table>
+<p>Add any other OpenAI-compatible endpoint with a small JSON file (<code>FREEAIPI_PROVIDERS=path.json</code>). See the <a href="https://github.com/Virus-101/V-lib-freeapi#readme">README</a>.</p>
+
+<h2 id="limits">Honest limits</h2>
+<ul>
+<li>Free means a free tier, not unlimited. Quotas, model lists and terms are the vendors' and change without notice. Catalogues are fetched at run time.</li>
+<li>Some vendors in the preset list have not been exercised against live endpoints yet. The code marks which have (<code>verified</code>).</li>
+<li>Paid APIs are out of scope. Presets that are not free are flagged as such.</li>
+<li>Usage figures come from what each vendor reports. Treat them as your own estimate, not an invoice.</li>
+<li>Local models are not downloaded for you, and their capabilities are inferred from names.</li>
+<li>Respect each vendor's terms: use your own account and key. Do not pool keys across people.</li>
+</ul>
+
+<footer>
+  MIT licensed. <a href="https://github.com/Virus-101/V-lib-freeapi">Source on GitHub</a> ·
+  <a href="https://github.com/Virus-101/V-lib-freeapi/issues">Report an issue</a>
+</footer>
+</div>
+</body>
+</html>

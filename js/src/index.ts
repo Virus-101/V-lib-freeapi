@@ -57,7 +57,7 @@ import { FreeAIClient } from "./client.js";
 import type { ChatChunk, ChatResponse, Message, ModelInfo } from "./models.js";
 import type { ChatOptions, ClientOptions } from "./client.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
 // ── one-call API ────────────────────────────────────────────────────────────
 // The common case needs no client object. A single shared client is built on

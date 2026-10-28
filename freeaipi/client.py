@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
+from . import home
 from .credentials import resolve_key
 from .errors import ConfigurationError, ModelNotFoundError, RateLimitError
 from .http import Transport
@@ -58,6 +59,7 @@ class FreeAIClient:
         compat_specs: list[Any] | None = None,
         max_retries: int = 3,
     ):
+        home.load_keys()
         self._or_key = resolve_key(openrouter_key, "openrouter")
         self._pl_key = resolve_key(pollinations_key, "pollinations")
         self.transport = transport or Transport(max_retries=max_retries)
@@ -142,7 +144,7 @@ class FreeAIClient:
         for key in targets:
             model, provider = self.registry.get(key)
             try:
-                return provider.chat(
+                resp = provider.chat(
                     messages=opts.messages,
                     tools=opts.tools,
                     temperature=opts.temperature,
@@ -151,6 +153,10 @@ class FreeAIClient:
                     json_mode=opts.json_mode,
                     seed=opts.seed,
                 )
+                u = resp.usage
+                home.record_usage(key, resp.provider.value, u.prompt_tokens,
+                                  u.completion_tokens, u.total_tokens)
+                return resp
             except RateLimitError:
                 raise  # quota is not a reason to silently switch models
             except Exception as exc:
