@@ -1,11 +1,30 @@
-# freeaipi
+# fllm  (install: `pip install freeaipi`)
 
 One Python interface for **every free LLM API**. No paid tiers, no credit cards —
 every model in the catalogue is either free, open-weight, or running on your own
 hardware.
 
+```bash
+pip install freeaipi        # the package name on PyPI / npm
+```
+
 ```python
-from freeaipi import FreeAIClient
+import fllm                 # the short name you actually type
+
+print(fllm.chat("Reply with exactly: OK").content)   # one call, no setup
+fllm.complete("Summarise: ...")
+fllm.list_models()
+fllm.best(requires_tools=True)
+[c.delta for c in fllm.stream("Tell me a story")]
+```
+
+`import freeaipi` still works and gives you exactly the same objects. Use whichever
+you like; the docs use `fllm` because it is short.
+
+### With a client object
+
+```python
+from fllm import FreeAIClient
 
 with FreeAIClient() as client:
     # No key, no configuration — works out of the box.
@@ -15,31 +34,13 @@ with FreeAIClient() as client:
     print(reply.usage.total_tokens)
 ```
 
-### Or skip the client entirely
-
-```python
-import freeaipi
-
-freeaipi.chat("Reply with exactly: OK").content      # one call, no setup
-freeaipi.complete("Summarise: ...")
-freeaipi.list_models()
-freeaipi.best(requires_tools=True)
-[c.delta for c in freeaipi.stream("Tell me a story")]
-```
-
 A single shared client is built on first use and reused, because construction
-performs network discovery. Call `freeaipi.reset()` after changing credentials in
+performs network discovery. Call `fllm.reset()` after changing credentials in
 a long-lived process.
 
 ## Short name and your own keys (0.2)
 
-`fllm` is the short import for the same library, and each developer keeps their
-own free keys on their own machine:
-
-```python
-import fllm
-fllm.chat("hello").content
-```
+Each developer keeps their own free keys on their own machine:
 
 ```bash
 fllm init                # guided setup: where to get each free key, stored in ~/.freeaipi/keys.env
