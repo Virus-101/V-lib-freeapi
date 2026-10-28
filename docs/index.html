@@ -44,7 +44,7 @@ footer{margin:64px 0 40px;padding-top:20px;border-top:1px solid var(--line);colo
   <h1>Free LLM APIs.<br><span>One import.</span></h1>
   <p class="lead"><code>fllm</code> gives you one interface to every free LLM backend: no-key hosted models, free-tier vendors you sign up to yourself, and models on your own machine. Your keys and usage stay on your computer.</p>
   <nav>
-    <a href="#install">Install</a><a href="#setup">Your own keys</a><a href="#use">Use it</a>
+    <a href="#install">Install</a><a href="#import">Import</a><a href="#setup">Your own keys</a><a href="#use">Use it</a>
     <a href="#gateway">Local gateway</a><a href="#cli">CLI</a><a href="#providers">Providers</a>
     <a href="#limits">Limits</a><a href="https://github.com/Virus-101/V-lib-freeapi">GitHub</a>
   </nav>
@@ -58,6 +58,34 @@ footer{margin:64px 0 40px;padding-top:20px;border-top:1px solid var(--line);colo
 <pre><code>pip install freeaipi        # gives you both `import freeaipi` and the short `import fllm`
 npm install freeaipi        # Node 18+, zero dependencies</code></pre>
 <p>Python 3.10+. The only dependency is <code>httpx</code>.</p>
+
+<h3 id="import">How to import it</h3>
+<p>The package you install is <code>freeaipi</code>. The short name you import is <code>fllm</code>. Both come from the same <code>pip install</code> and give you the same objects.</p>
+<pre><code># the short way (recommended)
+import fllm
+fllm.chat("hi")
+
+# pull in only what you need
+from fllm import chat, stream, best, list_models, run_tools
+
+# a client object, if you want your own settings
+from fllm import FreeAIClient
+client = FreeAIClient()
+client.chat("hi")
+
+# catch errors by type
+from fllm import RateLimitError, AuthenticationError
+
+# the long name still works
+import freeaipi</code></pre>
+<table>
+<tr><th>You write</th><th>What you get</th></tr>
+<tr><td><code>import fllm</code></td><td>Module-level helpers: <code>chat</code>, <code>stream</code>, <code>complete</code>, <code>run_tools</code>, <code>best</code>, <code>list_models</code>, <code>status</code></td></tr>
+<tr><td><code>from fllm import FreeAIClient</code></td><td>The client class, for custom registries or per-call control</td></tr>
+<tr><td><code>from fllm import RateLimitError, ...</code></td><td>Exception types: <code>AuthenticationError</code>, <code>ProviderError</code>, <code>ModelNotFoundError</code>, <code>ConfigurationError</code></td></tr>
+<tr><td><code>pip install freeaipi</code></td><td>The install name only. You never write <code>import freeaipi</code> unless you want to.</td></tr>
+</table>
+<p>Your keys are loaded for you the first time you call <code>chat</code> or create a client. You do not import or configure anything for them: run <code>fllm init</code> once and the import just works.</p>
 
 <h2 id="setup">2. Set up your own keys</h2>
 <p>Two backends need no key at all: Pollinations (rate-limited per IP) and any local model server. For more models and quota, create free accounts and store the keys locally:</p>
