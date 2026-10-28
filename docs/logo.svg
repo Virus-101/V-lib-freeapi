@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="fllm logo">
+  <rect width="64" height="64" rx="14" fill="#0F1A17"/>
+  <g fill="none" stroke="#4ED1A1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 14H17C29 14 28 32 41 32H54"/>
+    <path d="M10 23H17C29 23 28 32 41 32"/>
+    <path d="M10 32H54"/>
+    <path d="M10 41H17C29 41 28 32 41 32"/>
+    <path d="M10 50H17C29 50 28 32 41 32"/>
+  </g>
+</svg>

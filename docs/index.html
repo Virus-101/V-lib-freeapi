@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>fllm: free LLM APIs, one import</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta property="og:title" content="fllm: free LLM APIs, one import">
+<meta property="og:image" content="logo.svg">
 <meta name="description" content="One Python and Node interface for free LLM APIs. Bring your own free keys, keep them on your machine, run a local OpenAI-compatible gateway.">
 <style>
 :root{--bg:#fafaf7;--fg:#1c1c1a;--muted:#62625c;--card:#fff;--line:#e4e3dc;--accent:#0f6b4f;--code:#f1f0ea}
@@ -11,7 +14,9 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,sans-serif}
 .wrap{max-width:880px;margin:0 auto;padding:0 16px}
-header{padding:56px 0 24px}
+header{padding:40px 0 24px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:28px;font:700 1.35rem ui-monospace,Consolas,monospace;letter-spacing:-.02em}
+.brand img{width:44px;height:44px;border-radius:10px}
 h1{font-size:clamp(2rem,6vw,3rem);line-height:1.1;margin:0 0 12px;letter-spacing:-.02em}
 h1 span{color:var(--accent)}
 h2{font-size:1.4rem;margin:48px 0 8px;letter-spacing:-.01em}
@@ -35,6 +40,7 @@ footer{margin:64px 0 40px;padding-top:20px;border-top:1px solid var(--line);colo
 <body>
 <div class="wrap">
 <header>
+  <div class="brand"><img src="logo.svg" alt="" width="44" height="44">fllm</div>
   <h1>Free LLM APIs.<br><span>One import.</span></h1>
   <p class="lead"><code>fllm</code> gives you one interface to every free LLM backend: no-key hosted models, free-tier vendors you sign up to yourself, and models on your own machine. Your keys and usage stay on your computer.</p>
   <nav>
