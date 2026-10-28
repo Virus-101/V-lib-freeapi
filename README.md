@@ -49,7 +49,7 @@ fllm serve               # local OpenAI-compatible gateway on http://127.0.0.1:8
 ```
 
 A key already in the environment beats the stored file. `FREEAIPI_HOME` moves the
-state directory. Docs: https://fllm-free-llm-docs.netlify.app
+state directory. Docs: https://virus-101.github.io/V-lib-freeapi/
 
 ## Install
 
